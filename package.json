@@ -7,11 +7,16 @@
     "watch": "gulp",
     "build": "gulp build",
     "build:standalone": "gulp --gulpfile gulpfile.standalone.js build",
+    "build:template": "gulp --gulpfile gulpfile.updater.js build",
     "serve": "cd dist && http-server -p 8080",
     "serve:tmp": "cd tmp && http-server",
+    "dev": "npm run build:standalone && npm run serve",
+    "update:local": "node schedule-updater/update-schedule.js",
+    "update:service": "node schedule-updater/index.js",
     "deploy": "./deploy.sh",
     "deploy:fly": "./deploy-flyio.sh",
-    "dev": "npm run build:standalone && npm run serve"
+    "deploy:fly:complete": "./deploy-fly-complete.sh",
+    "deploy:aws": "npm run build:template && ./deploy.sh"
   },
   "author": "Michoel Samuels",
   "license": "ISC",

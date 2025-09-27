@@ -1,0 +1,37 @@
+# Fly.io configuration for Schedule Updater Service
+# This runs as a separate app that updates the main site
+
+app = "next-meeting-updater"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile.updater"
+
+[env]
+  DEPLOYMENT_PLATFORM = "fly"
+  UPDATE_ON_START = "true"
+  CRON_SCHEDULE = "0 * * * *"  # Every hour
+  # Add your Google Sheets credentials here or via secrets
+  # GOOGLE_SHEET_ID = "your-sheet-id"
+  # GOOGLE_API_KEY = "your-api-key"
+
+[mounts]
+  source = "meeting_data"
+  destination = "/data"
+
+[[services]]
+  internal_port = 3000
+  protocol = "tcp"
+  
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+  
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 256
