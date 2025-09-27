@@ -6,8 +6,12 @@
   "scripts": {
     "watch": "gulp",
     "build": "gulp build",
-    "serve": "cd tmp && http-server",
-    "deploy": "./deploy.sh"
+    "build:standalone": "gulp --gulpfile gulpfile.standalone.js build",
+    "serve": "cd dist && http-server -p 8080",
+    "serve:tmp": "cd tmp && http-server",
+    "deploy": "./deploy.sh",
+    "deploy:fly": "./deploy-flyio.sh",
+    "dev": "npm run build:standalone && npm run serve"
   },
   "author": "Michoel Samuels",
   "license": "ISC",
