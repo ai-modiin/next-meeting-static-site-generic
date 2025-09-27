@@ -14,7 +14,7 @@ COPY . .
 RUN mkdir -p configs
 
 # Build the static site
-RUN npm run build || echo "Build step will be configured"
+RUN npm run build:standalone || true
 
 # Production stage - using nginx for serving static files
 FROM nginx:alpine

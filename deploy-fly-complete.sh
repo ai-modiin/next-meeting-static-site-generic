@@ -15,9 +15,21 @@ if ! command -v flyctl &> /dev/null; then
     exit 1
 fi
 
+# Check if jq is installed (required for parsing JSON)
+if ! command -v jq &> /dev/null; then
+    echo "⚠️  jq not found. Installing jq is recommended for better output parsing."
+    echo "   On macOS: brew install jq"
+    echo "   On Linux: sudo apt-get install jq"
+    # Continue without jq, using fallback values
+fi
+
 # Load environment
 if [ -f .env.fly ]; then
-    export $(cat .env.fly | grep -v '^#' | xargs)
+    set -a
+    source .env.fly
+    set +a
+else
+    echo "⚠️  .env.fly not found. Using default configuration."
 fi
 
 # Step 1: Build the static site

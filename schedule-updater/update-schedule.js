@@ -18,9 +18,10 @@ const fs = require('fs').promises;
 const path = require('path');
 const axios = require('axios');
 const { google } = require('googleapis');
+const { validateMeeting, validateGoogleSheetsConfig, sanitizeMeeting } = require('./validators');
 
 // Platform-specific imports
-let S3Client, PutObjectCommand, CloudFrontClient, CreateInvalidationCommand;
+let S3Client, PutObjectCommand, GetObjectCommand, CloudFrontClient, CreateInvalidationCommand;
 let BlobServiceClient;
 
 // Conditionally load AWS SDK if using AWS
@@ -29,6 +30,7 @@ if (process.env.DEPLOYMENT_PLATFORM === 'aws') {
   const awsCF = require('@aws-sdk/client-cloudfront');
   S3Client = awsS3.S3Client;
   PutObjectCommand = awsS3.PutObjectCommand;
+  GetObjectCommand = awsS3.GetObjectCommand;
   CloudFrontClient = awsCF.CloudFrontClient;
   CreateInvalidationCommand = awsCF.CreateInvalidationCommand;
 }
@@ -132,8 +134,8 @@ class ScheduleUpdater {
    */
   transformMeetingData(rawMeeting) {
     // Customize this based on your sheet structure
-    return {
-      id: rawMeeting.id || `meeting-${Date.now()}-${Math.random()}`,
+    const meeting = {
+      id: rawMeeting.id || `meeting-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       name: rawMeeting.meeting_name || rawMeeting.name || 'Unnamed Meeting',
       day: rawMeeting.day || 'Monday',
       time: rawMeeting.time || '12:00',
@@ -142,9 +144,19 @@ class ScheduleUpdater {
       url: rawMeeting.zoom_url || rawMeeting.url || '#',
       passcode: rawMeeting.passcode || '',
       description: rawMeeting.description || '',
-      tags: (rawMeeting.tags || '').split(',').map(t => t.trim()).filter(Boolean),
-      valid: !!(rawMeeting.name && rawMeeting.day && rawMeeting.time)
+      tags: (rawMeeting.tags || '').split(',').map(t => t.trim()).filter(Boolean)
     };
+    
+    // Validate and sanitize the meeting data
+    const validation = validateMeeting(meeting);
+    if (!validation.valid) {
+      console.warn(`Meeting validation failed: ${validation.errors.join(', ')}`);
+      meeting.valid = false;
+    } else {
+      meeting.valid = true;
+    }
+    
+    return sanitizeMeeting(meeting);
   }
 
   /**
@@ -203,7 +215,6 @@ class ScheduleUpdater {
    * Read template from S3
    */
   async readTemplateFromS3() {
-    const { GetObjectCommand } = require('@aws-sdk/client-s3');
     const command = new GetObjectCommand({
       Bucket: process.env.S3_BUCKET,
       Key: `${this.config.deployId}.template.html`
@@ -226,10 +237,19 @@ class ScheduleUpdater {
    * Inject schedule into HTML template
    */
   injectSchedule(template, scheduleData) {
+    // Sanitize the data to prevent XSS
+    const sanitizedData = JSON.parse(JSON.stringify(scheduleData));
+    
+    // Escape any potential script tags in the JSON
+    const jsonString = JSON.stringify(sanitizedData)
+      .replace(/</g, '\\u003c')
+      .replace(/>/g, '\\u003e')
+      .replace(/&/g, '\\u0026');
+    
     const scheduleScript = `
-    const JSON_SCHEDULE = ${JSON.stringify(scheduleData)};
+    const JSON_SCHEDULE = ${jsonString};
     const BUILD_INFO = {
-      version: '${this.config.deployId}',
+      version: '${this.config.deployId.replace(/['"]/g, '')}',
       built: '${new Date().toISOString()}',
       lastUpdated: '${new Date().toISOString()}'
     };

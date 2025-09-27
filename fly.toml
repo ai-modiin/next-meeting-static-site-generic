@@ -28,6 +28,10 @@ primary_region = "iad"
   hard_limit = 25
   soft_limit = 20
 
+[mounts]
+  source = "meeting_data"
+  destination = "/data"
+
 [[vm]]
   cpu_kind = "shared"
   cpus = 1
