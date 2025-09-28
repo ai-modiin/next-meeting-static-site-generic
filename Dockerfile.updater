@@ -1,0 +1,23 @@
+# Dockerfile for Schedule Updater Service
+# This runs as a separate service that updates the static site periodically
+
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy updater service files
+COPY schedule-updater/package*.json ./
+RUN npm ci --only=production
+
+COPY schedule-updater/ ./
+
+# Create data directory for Fly.io persistent volume
+RUN mkdir -p /data
+
+# Set default environment
+ENV DEPLOYMENT_PLATFORM=fly
+ENV UPDATE_ON_START=true
+ENV CRON_SCHEDULE="0 * * * *"
+
+# Run the cron service
+CMD ["node", "index.js"]
